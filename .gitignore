@@ -1,0 +1,7 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+pump-it-up/data/test-set.csv
+pump-it-up/data/training-data.csv
+pump-it-up/data/training-label.csv

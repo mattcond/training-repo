@@ -1,0 +1,161 @@
+---
+title: "Untitled"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+library(data.table)
+library(dplyr)
+library(ggplot2)
+library(janitor)
+library(knitr)
+library(rlang)
+```
+
+## Load training data
+
+```{r}
+X_train = fread('data/training-data.csv', stringsAsFactors = F)
+y_train = fread('data/training-label.csv', stringsAsFactors = F)
+```
+
+## Output class distribution
+
+```{r}
+ggplot(data = y_train) + 
+  geom_bar(aes(x = status_group, fill = status_group)) +
+  theme_classic()
+```
+
+## Top 5 funder
+
+```{r message=FALSE, warning=FALSE}
+top_5_funder <- X_train %>%
+  group_by(funder) %>% 
+  summarise(n = n()) %>% 
+  arrange(desc(n)) %>% 
+  head(5) %>% 
+  ungroup() %>% 
+  pull(funder)
+
+top_5_funder %>% 
+  paste('Funder: ', ., collapse = '\n') %>% 
+  cat(sep = '\n')
+
+```
+
+```{r}
+data.frame('funder' = X_train$funder, 'status' = y_train$status_group, stringsAsFactors = F) %>% 
+  #group_by(founder) %>% 
+  #mutate(n = n()/nrow(X_train)) %>% 
+  #arrange(desc(n)) %>% 
+  #ungroup() %>% 
+  #filter(n>0.025) %>% 
+  #select(-n) %>% 
+  filter(funder %in% top_5_funder) %>% 
+  tabyl(var1 = funder, var2 = status, show_na = F, show_missing_levels = F) %>% 
+  adorn_percentages("all") %>%
+  adorn_rounding(2) %>% 
+  adorn_ns()
+```
+
+### Na values
+
+```{r}
+col_na <- is.na(X_train) %>% colSums() 
+row_na <- is.na(X_train) %>% rowSums()
+X_train$na_filter <- row_na == 0
+data.frame('na' = col_na) %>% 
+  filter(col_na > 0) %>% 
+  kable()
+```
+
+I valori na pesano il 5%. Li rimuovo per dei primi modelli
+
+```{r}
+X_train <- X_train %>% filter(na_filter)
+y_train <- y_train %>% filter(id %in% X_train$id)
+```
+
+```{r}
+
+describe_data <- function(data){
+  
+  require(janitor)
+  require(dplyr)
+  require(glue)
+  require(knitr)
+  cols <- colnames(data)
+  
+  for(col in cols){
+
+    tmp_col <- data %>% pull(col)
+    data_class <- tmp_col %>% class()
+    
+    if(sum(data_class %in% c('factor', 'character'))>0){
+      
+      cat('============================\n')
+      cat('+ ', col, ' +\n')
+      cat('============================\n')
+      
+      set_result <- table(tmp_col, dnn = NULL) %>% 
+        sort(decreasing = T) %>% 
+        head(10)
+      set_result <- data.frame('Cat' = names(set_result), 
+                               'Freq'=as.numeric(set_result), 
+                               row.names = NULL) 
+      
+      cat(kable(set_result, "simple"), sep = '\n')
+      
+      cat('\n')
+      
+    } else {
+      
+      cat('============================\n')
+      cat('+ ', col, ' +\n')
+      cat('============================\n')
+      
+      set_result <-tmp_col %>% 
+        summary() %>% 
+        t %>% 
+        t %>% 
+        data.frame() %>% 
+        select(Var1, Freq) %>% 
+        rename(Measure = Var1)
+      
+      cat(kable(set_result, "simple"), sep = '\n')
+      
+      cat('\n')
+      
+    }
+    
+    
+    
+    
+  }
+  
+  
+  
+}
+
+
+```
+
+
+
+```{r}
+X_train %>% data.frame() %>% describe_data()
+```
+
+```{r}
+
+```
+
+```{python}
+
+from sklearn.tree import DecisionTreeClassifier
+
+dt = DecisionTreeClassifier()
+
+dt
+```
