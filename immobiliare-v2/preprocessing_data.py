@@ -2,6 +2,10 @@
 
 from peewee import MySQLDatabase
 import pandas as pd
+
+import geopandas as gpd
+from shapely.geometry import Point
+
 import seaborn as sns
 import re
 
@@ -15,6 +19,8 @@ days_window = 1000
 date_par = datetime.today() - timedelta(days=days_window)
 date_par = date_par.strftime('%Y-%m-%d')
 print(date_par)
+
+bologna_shp = gpd.read_file('./shapefile/aree-statistiche.geojson')
 
 # %% FUNCTION
 
@@ -97,6 +103,30 @@ def normalize_year(y):
 
     return '8_POST_2010'
 
+def get_esposizione(s=''):
+
+    _l = ['ovest', 'nord', 'sud', 'est']
+    _o = {i:0 for i in _l}
+
+    for c in _l:
+
+        if c in s:
+
+            _o[c] = 1
+            s = s.replace(c, '')
+
+    return _o 
+
+def get_geo_info(p, shp):
+
+    _ = shp.loc[shp.geometry.apply(lambda x: x.contains(p)), ['codice_area_statistica', 'area_statistica', 'cod_quar', 'quartiere', 'cod_zona', 'zona']]
+    
+    if _.shape[0] == 0:
+        
+        _row = {i:'ND' for i in _.columns}
+        _ = _.append(_row, ignore_index=True)
+        
+    return _
 
 # %% MYSQL CONNECTION
 
@@ -123,7 +153,6 @@ merge_dataset = pd.merge(annuncio, dettaglio, on='url_id', suffixes=('_ann', '_d
 merge_dataset = pd.merge(merge_dataset, reversegeo, on='url_id', suffixes=('', '_rga'))
 
 cnx.close()
-
 # %% Selezione colonne e creazione target
 
 merge_dataset['euro_mq'] = merge_dataset['prezzo'] / merge_dataset['superficie']
@@ -153,7 +182,8 @@ piano_map = {i:it.rjust(2,' ') if it.lower()>='a' else it.zfill(2) if it.zfill(2
 bologna_appartamento_masked['piano_lkp'] = bologna_appartamento_masked.piano.map(piano_map)
 
 # %% Piani totali
-piani_tot_map = {i:str(int(i)).zfill(2) if i <=10 else '10+'for i in bologna_appartamento_masked['piani_totali'].unique()}
+#piani_tot_map = {i:str(int(i)).zfill(2) if i <=10 else '10+'for i in bologna_appartamento_masked['piani_totali'].unique()}
+piani_tot_map = {i:str(int(i)).zfill(2) if i <=5 else '5+'for i in bologna_appartamento_masked['piani_totali'].unique()}
 bologna_appartamento_masked['piani_totali_lkp'] = bologna_appartamento_masked.piani_totali.map(piani_tot_map)
 
 # %% Locali
@@ -188,6 +218,16 @@ bologna_appartamento_masked['classe_energetica_lkp'] = bologna_appartamento_mask
 
 # %% Anno costruzione
 bologna_appartamento_masked['anno_costruzione_lkp'] = bologna_appartamento_masked.anno_costruzione.apply(normalize_year)
+
+# %% Arricchisco con informazioni geografiche
+
+bologna_appartamento_masked['P'] = bologna_appartamento_masked[['longitudine', 'latitudine']].apply(lambda x: Point(x['longitudine'], x['latitudine']), axis=1)
+
+geo_enr = bologna_appartamento_masked.P.apply(lambda x: get_geo_info(x,bologna_shp)).to_list()
+geo_enr_pdf = pd.concat(geo_enr)
+geo_enr_pdf.index = bologna_appartamento_masked.index
+
+bologna_appartamento_masked = bologna_appartamento_masked.join(geo_enr_pdf)
 
 # %%
 bologna_appartamento_masked.to_excel('output_data_1k.xlsx')
