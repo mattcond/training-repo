@@ -6,8 +6,8 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Point
 
-import seaborn as sns
 import re
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
@@ -230,4 +230,4 @@ geo_enr_pdf.index = bologna_appartamento_masked.index
 bologna_appartamento_masked = bologna_appartamento_masked.join(geo_enr_pdf)
 
 # %%
-bologna_appartamento_masked.to_excel('output_data_1k.xlsx')
+bologna_appartamento_masked.to_excel(f'output_data_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx')
