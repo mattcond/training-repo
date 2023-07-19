@@ -5,7 +5,10 @@ library(dplyr)
 library(stringr)
 
 dataset <- read.xlsx('output_data_20230717_212837.xlsx')
-perc_anno <- read.xlsx('model/perc_anno_mese.xlsx')
+perc_anno <- read.xlsx('model/perc_anno_mese.xlsx', sheet = 'SCALED')
+fermate <- read.xlsx('model/perc_anno_mese.xlsx', sheet = 'BOL_KPI')
+
+
 
 indice_frag <- read.xlsx('model/dati_esterni/indici-di-fragilita-dal-2021.xlsx')
 
@@ -68,11 +71,14 @@ dataset_mod <-
     locali_int = as.integer(str_sub(locali, 1, 1)), 
     locali_sup = superficie / locali_int, 
     dist_p_magg = sqrt((latitudine-p_mag_lat)^2 + (longitudine-p_mag_lng)^2)*100,
-    dist_s_cen = sqrt((latitudine-s_cen_lat)^2 + (longitudine-s_cen_lng)^2)*100
+    dist_s_cen = sqrt((latitudine-s_cen_lat)^2 + (longitudine-s_cen_lng)^2)*100, 
+    aprox_lat = latitudine - latitudine %% 0.005, 
+    aprox_lng = longitudine - longitudine %% 0.005, 
     
   ) %>% 
   left_join(perc_anno, by='anno_mese') %>% 
   left_join(indice_frag_sel, by='codice_area_statistica') %>% 
+  left_join(fermate, by=c('aprox_lat', 'aprox_lng')) %>% 
   
   mutate(
     
@@ -135,9 +141,26 @@ dataset_mod <-
       T ~ '4. > 3,5'
       
     ), 
+    cl_feramte = case_when(
+      
+      is.na(N_FERMATE) | N_FERMATE == 0 ~ 0, 
+      T~1
+      
+    ),
+    
+    cl_feramte_core = case_when(
+      
+      is.na(N_FERMATE_CORE) | N_FERMATE_CORE == 0 ~ 0, 
+      T~1
+      
+    ),
+    cl_giardini = ifelse(coalesce(N_GIARDINI, 0)+coalesce(N_PARCHI, 0)>0, 1, 0),
+    cl_farmacie = ifelse(coalesce(N_FARMACIE, 0)>0, 1, 0),
+    cl_museo = ifelse(coalesce(MUSEI_GALLERIE_TEATRI, 0)>0, 1, 0),
     riscaldamento_tipo_cat = ifelse(is.na(riscaldamento_tipo_cat), 'ND', riscaldamento_tipo_cat), 
     stato = ifelse(is.na(stato), 'ND', stato), 
-    riscaldamento_alimentazione_cat = ifelse(is.na(riscaldamento_alimentazione_cat), 'ND', riscaldamento_alimentazione_cat) 
+    riscaldamento_alimentazione_cat = ifelse(is.na(riscaldamento_alimentazione_cat), 'ND', riscaldamento_alimentazione_cat),
+    
     
   ) %>% 
   rename(
@@ -147,7 +170,7 @@ dataset_mod <-
 write.xlsx(dataset_mod, 'dataset_mod.xlsx')
 
 mod <- lm(scaled_euro_mq~
-            zona+
+            area_statistica+
             anno_costruzione_lkp+
             stato+
             bagni_lkp_agg+
@@ -162,14 +185,20 @@ mod <- lm(scaled_euro_mq~
             dist_s_cen+
             cantina_ac_feat+
             arredato_ac_feat+
-            cancello.elettrico_ac_feat+#taverna_ac_feat+balcone+
+            cancello.elettrico_ac_feat+
+            taverna_ac_feat+
+            #balcone+
             riscaldamento_tipo_cat+
             riscaldamento_alimentazione_cat+
-            frag_econ_index+
-            frag_demo_index+
-            frag_socio_index+
-            reddito_pc+
-            perc_ric_str, 
+            #frag_econ_index+
+            #frag_demo_index+
+            #frag_socio_index+
+            #reddito_pc+
+            cl_feramte+ 
+            cl_feramte_core+
+            cl_giardini+
+            cl_farmacie+
+            cl_museo, 
           data = dataset_mod)
 
 mod %>% summary()
