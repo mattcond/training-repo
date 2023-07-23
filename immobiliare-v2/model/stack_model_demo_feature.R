@@ -5,6 +5,7 @@ library(dplyr)
 library(stringr)
 library(randomForest)
 library(xgboost)
+library(plotly)
 
 dataset <- read.xlsx('output_data_20230717_212837.xlsx', 'Sheet1')
 perc_anno <- read.xlsx('model/perc_anno_mese.xlsx', sheet = 'SCALED')
@@ -29,17 +30,8 @@ indice_frag_sel <- indice_frag %>%
     perc_ric_str = `%.ricambio.popolaz..straniera.tra.20.e.64.anni`, 
     perc_aff = `%.abitazioni.occupate.in.affitto`
     
-    ) %>% 
+  ) %>% 
   mutate(codice_area_statistica = as.character(codice_area_statistica))
-  
-  
-dataset %>% head()
-
-dataset %>% filter(PERIMETRO == 'X') %>% pull(euro_mq) %>% quantile(probs = seq(0,1,.05), na.rm = T) # 1850 - 5000
-dataset %>% filter(PERIMETRO == 'X') %>% pull(superficie) %>% quantile(probs = seq(0,1,.05), na.rm = T) 
-dataset %>% filter(PERIMETRO == 'X') %>% pull(prezzo) %>% quantile(probs = seq(0,1,.05), na.rm = T) 
-dataset %>% group_by(tipo_proprieta) %>% summarise(mean(prezzo, na.rm = T), n()) %>% print(n=50)
-dataset %>% group_by(anno_costruzione_lkp) %>% summarise(mean(prezzo, na.rm = T), n()) %>% print(n=50)
 
 piazza_maggiore_coord <- c(44.49367, 11.34305)
 stazione_centrale_coord <- c(44.50537, 11.34331)
@@ -54,7 +46,7 @@ dataset_mod <-
     locali > 0,
     PERIMETRO == 'X'
     
-    ) %>%
+  ) %>%
   mutate(
     
     p_mag_lat = ifelse(T, piazza_maggiore_coord[1], NA),
@@ -164,38 +156,38 @@ dataset_mod <-
     nuda_proprieta = nuda.proprietà, 
     intera_proprieta = intera.proprietà)
 
-write.xlsx(dataset_mod, 'dataset_mod.xlsx')
+## DEMO MODEL
 
 mod <- lm(scaled_euro_mq~
-            area_statistica+
-            anno_costruzione_lkp+
-            stato+
-            bagni_lkp_agg+
-            climatizzato+
-            piani_totali_lkp_agg+
-            nuda_proprieta+
-            intera_proprieta+
-            locali_lkp_agg+
-            locali_sup+
-            climatizzato+
-            dist_p_magg+
-            dist_s_cen+
-            cantina_ac_feat+
-            arredato_ac_feat+
-            cancello.elettrico_ac_feat+
-            taverna_ac_feat+
-            #balcone+
-            riscaldamento_tipo_cat+
-            riscaldamento_alimentazione_cat+
-            #frag_econ_index+
-            #frag_demo_index+
-            #frag_socio_index+
-            #reddito_pc+
-            cl_feramte+ 
-            cl_feramte_core+
-            cl_giardini+
-            cl_farmacie+
-            cl_museo, 
+                      area_statistica+
+                      anno_costruzione_lkp+
+                      stato+
+                      bagni_lkp_agg+
+                      climatizzato+
+                      piani_totali_lkp_agg+
+                      nuda_proprieta+
+                      intera_proprieta+
+                      locali_lkp_agg+
+                      locali_sup+
+                      climatizzato+
+                      dist_p_magg+
+                      dist_s_cen+
+                      cantina_ac_feat+
+                      arredato_ac_feat+
+                      cancello.elettrico_ac_feat+
+                      taverna_ac_feat+
+                      #balcone+
+                      riscaldamento_tipo_cat+
+                      riscaldamento_alimentazione_cat+
+                      #frag_econ_index+
+                      #frag_demo_index+
+                      #frag_socio_index+
+                      #reddito_pc+
+                      cl_feramte+ 
+                      cl_feramte_core+
+                      cl_giardini+
+                      cl_farmacie+
+                      cl_museo, 
           data = dataset_mod)
 
 mod %>% summary()
@@ -206,88 +198,108 @@ mod$residuals %>% MASS::truehist()
 
 plot(mod)
 
-### XGBOOST
+## FEAT MODEL
 
-rf_model <- randomForest(x = dataset_mod %>% select(area_statistica,
-                                      anno_costruzione_lkp,
-                                      stato,
-                                      bagni_lkp_agg,
-                                      climatizzato,
-                                      piani_totali_lkp_agg,
-                                      nuda_proprieta,
-                                      intera_proprieta,
-                                      locali_lkp_agg,
-                                      locali_sup,
-                                      climatizzato,
-                                      #dist_p_magg,
-                                      #dist_s_cen,
-                                      cantina_ac_feat,
-                                      arredato_ac_feat,
-                                      cancello.elettrico_ac_feat,
-                                      taverna_ac_feat,
-                                      riscaldamento_tipo_cat,
-                                      riscaldamento_alimentazione_cat,
-                                      balcone,
-                                      frag_econ_index,
-                                      frag_demo_index,
-                                      frag_socio_index,
-                                      reddito_pc,
-                                      cl_feramte, 
-                                      cl_feramte_core,
-                                      cl_giardini,
-                                      cl_farmacie,
-                                      cl_museo), 
-        y = dataset_mod$scaled_euro_mq, 
-        ntree = 25, 
-        mtry=7)
+rf_model <- randomForest(scaled_euro_mq~
+                           area_statistica+
+                           anno_costruzione_lkp+
+                           stato+
+                           bagni_lkp_agg+
+                           climatizzato+
+                           piani_totali_lkp_agg+
+                           nuda_proprieta+
+                           intera_proprieta+
+                           locali_lkp_agg+
+                           locali_sup+
+                           climatizzato+
+                           dist_p_magg+
+                           dist_s_cen+
+                           cantina_ac_feat+
+                           arredato_ac_feat+
+                           cancello.elettrico_ac_feat+
+                           taverna_ac_feat+
+                           #balcone+
+                           riscaldamento_tipo_cat+
+                           riscaldamento_alimentazione_cat+
+                           #frag_econ_index+
+                           #frag_demo_index+
+                           #frag_socio_index+
+                           #reddito_pc+
+                           cl_feramte+ 
+                           cl_feramte_core+
+                           cl_giardini+
+                           cl_farmacie+
+                           cl_museo,
+                         ntree = 50, 
+                         mtry=7, 
+                         data = dataset_mod)
 rf_model
 rf_model %>% summary()
 rf_model$mse %>% sqrt()
 varImpPlot(rf_model)
 
+### PRED
 
-fr_predict <- rf_model$predicted
-
-#########
-
-dataset %>% 
-  filter(!is.na(anno_costruzione), anno_costruzione_lkp != '0_NO_ANNO', anno_costruzione_lkp !=  '1_ANTE_1950') %>% 
-  group_by(quartiere, anno_costruzione) %>% 
-  summarise(n = n()) %>% 
-  arrange(quartiere, desc(n)) %>% 
-  ungroup() %>% 
-  mutate(anno_costruzione=as.integer(anno_costruzione), 
-         anno_costruzione)
-
-forecast <- dataset_mod %>% 
-  select(url_ann, anno_mese, data_prima_presenza_online, 
-         superficie, prezzo, euro_mq, scaled_euro_mq, perc_perimetro) %>% 
+pred <- dataset_mod %>% 
+  select(scaled_euro_mq) %>% 
   mutate(
-    scaled_euro_mq_forec = mod$fitted.values,
-    euro_mq_forec = scaled_euro_mq_forec * perc_perimetro,
-    prezzo_forec = euro_mq_forec * superficie, 
-    delta_prezzo = prezzo_forec - prezzo
-    )
+    demo_model = predict(mod), 
+    feat_model = predict(rf_model)
+  ) #%>% 
+  #mutate(scaled_euro_mq_pred = 0.5*demo_model + 0.5*feat_model)
 
-forecast_rf <- dataset_mod %>% 
-  select(url_ann, anno_mese, data_prima_presenza_online, 
-         superficie, prezzo, euro_mq, scaled_euro_mq, perc_perimetro) %>% 
-  mutate(
-    scaled_euro_mq_forec = fr_predict,
-    euro_mq_forec = scaled_euro_mq_forec * perc_perimetro,
-    prezzo_forec = euro_mq_forec * superficie, 
-    delta_prezzo = prezzo_forec - prezzo
-  )
+gs <- expand.grid(seq(0,1,0.01), seq(0,1,0.01)) %>% data.frame()
+colnames(gs) <- c('mod1', 'mod2')
+gs$r_sum = rowSums(gs)
+gs <- gs %>% filter(r_sum > 0)
+gs$mse <- NA_real_
+n_row_gs <- nrow(gs)
+
+for(r in 1:n_row_gs){
+  mod1 <- gs[r, 'mod1']
+  mod2 <- gs[r, 'mod2']
+  rs <- gs[r, 'r_sum']
+  
+  pred <- pred %>% 
+    mutate(scaled_euro_mq_pred = (mod1*demo_model + mod2*feat_model)/rs)
+  mse_eval <- mean((pred$scaled_euro_mq - pred$scaled_euro_mq_pred)^2) %>% sqrt
+  gs[r, 'mse'] <- mse_eval
+  if(mse_eval < 350){
+    print(paste(mod1, " - ", mod2,": ", mse_eval))
+  }
+}
+
+x_mse <- gs %>% pull(mod1) %>% unique() %>% sort
+y_mse <- gs %>% pull(mod2) %>% unique() %>% sort
+z_mse <- gs %>% arrange(mod1, mod2) %>% pull(mse) %>% matrix(nrow = length(x_mse))
+
+mse_df <- list('x' = x_mse, 'y'=y_mse, 'z'=z_mse)
+
+mse_matrix <- as.matrix(gs[,c('mod1', 'mod2', 'mse')])
+
+kd <- with(MASS::geyser, MASS::kde2d(duration, waiting, n = 50))
+fig <- plot_ly(x = mse_df$x, y = mse_df$y, z = mse_df$z) %>% add_surface()
+
+fig
 
 
-plot(forecast_rf$scaled_euro_mq, forecast_rf$scaled_euro_mq_forec, xlim = c(0, 5000), ylim = c(0, 5000))
+
+mean((pred$scaled_euro_mq - pred$scaled_euro_mq_pred)^2) %>% sqrt
+
+par(mfrow = c(1, 1))
+(pred$scaled_euro_mq - pred$scaled_euro_mq_pred) %>% sort() %>% plot()
+
+
+par(mfrow = c(2, 2))
+plot(pred$demo_model , pred$scaled_euro_mq, xlim = c(0, 5000), ylim = c(0, 5000))
 abline(0, 1, col = 'red', lwd=2)
 
-plot(forecast$scaled_euro_mq_forec, forecast_rf$scaled_euro_mq_forec, xlim = c(0, 5000), ylim = c(0, 5000))
+plot(pred$feat_model , pred$scaled_euro_mq, xlim = c(0, 5000), ylim = c(0, 5000))
 abline(0, 1, col = 'red', lwd=2)
 
-plot(forecast$scaled_euro_mq_forec, (forecast$scaled_euro_mq_forec + forecast_rf$scaled_euro_mq_forec)/2, xlim = c(0, 5000), ylim = c(0, 5000))
+plot(pred$demo_model , pred$feat_model, xlim = c(0, 5000), ylim = c(0, 5000))
 abline(0, 1, col = 'red', lwd=2)
 
-
+plot(pred$scaled_euro_mq_pred , pred$scaled_euro_mq, xlim = c(0, 5000), ylim = c(0, 5000))
+abline(0, 1, col = 'red', lwd=2)
 
