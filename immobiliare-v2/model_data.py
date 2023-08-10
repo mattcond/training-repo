@@ -64,13 +64,20 @@ for r in data.head(5).iterrows():
 
     _output_dict = {
 
-        'url_ann': r[1]['url_ann'],
+        'url_annuncio': r[1]['url_ann'],
         'superficie': int(r[1]['superficie']), 
         'prezzo': int(r[1]['prezzo']), 
         'euro_mq': int(r[1]['euro_mq']),
+        'perc_perimetro': round(r[1]['perc_perimetro'], 4),
+        'scaled_euro_mq' : int(r[1]['euro_mq'] / r[1]['perc_perimetro']), 
+        'scaled_prezzo' : int(r[1]['prezzo'] / r[1]['perc_perimetro']),
         'data_prima_presenza_online': r[1]['data_prima_presenza_online'], 
         'anno_mese_annuncio': r[1]['anno_mese_annuncio'], 
         'perimetro': 'X' if (r[1]['euro_mq'] > 1_850 and r[1]['euro_mq'] < 5_000) and (r[1]['prezzo'] > 125_000 and r[1]['prezzo'] < 700_000) and (r[1]['superficie'] > 40 and r[1]['superficie'] < 180) and int(r[1]['locali'][:1]) > 0 else '' ,
+        'pred_euro_mq':-1,
+        'pred_prezzo':-1,
+        'processato':'',
+
         ### AREA STATISTICA
 
         'AS_XXI_APRILE':1 if r[1]['area_statistica'] == 'XXI APRILE' else 0,
@@ -201,11 +208,11 @@ for r in data.head(5).iterrows():
 
         ### N PROPR
 
-        'NUDA_PROPRIETA': r[1]['nuda proprietà'] == 1 ,
+        'NUDA_PROPRIETA': r[1]['nuda proprietà'] ,
 
         ### INT PROPR
 
-        'INTERA_PROPRIETA': r[1]['intera proprietà'] == 1 ,
+        'INTERA_PROPRIETA': r[1]['intera proprietà'] ,
 
         ### LOCALI
 
@@ -221,35 +228,56 @@ for r in data.head(5).iterrows():
 
         ### DIST P MAGG
 
-        'DIST_P_MAGG': np.sqrt(np.power((r[1]['latitudine']-piazza_maggiore_coord[0]),2) + 
+        'DIST_P_MAGG_S1000': round(np.sqrt(np.power((r[1]['latitudine']-piazza_maggiore_coord[0]),2) + 
                                np.power((r[1]['longitudine']-piazza_maggiore_coord[1]),2)
-                               )*100,
+                               )*1000, 2),
 
         ### DIST S CENT
 
-        'DIST_S_CENT': np.sqrt(np.power((r[1]['latitudine']-stazione_centrale_coord[0]),2) + 
+        'DIST_S_CENT_S1000': round(np.sqrt(np.power((r[1]['latitudine']-stazione_centrale_coord[0]),2) + 
                                np.power((r[1]['longitudine']-stazione_centrale_coord[1]),2)
-                               )*100,
+                               )*1000,2),
 
-        ### CANTINA
+        ### ALTRE CARATTERISTICHE
 
-        'AC_CANTINA': r[1]['cantina_ac_feat'],
+        'AC_CANTINA': r[1]['cantina'],
+        'AC_ARREDATO': r[1]['arredato'],
+        'AC_CANCELLO': r[1]['cancello'],
+        'AC_TAVERNA': r[1]['taverna'],
+        'AC_BALCONE': r[1]['balcone'],
+        'AC_ARMADIO_A_MURO':r[1]['armadio_a_muro'],
+        'AC_ARREDATO':r[1]['arredato'],
+        'AC_CAMINETTO':r[1]['caminetto'],
+        'AC_CANNA_FUMARIA':r[1]['canna_fumaria'],
+        'AC_CUCINA':r[1]['cucina'],
+        'AC_ESP_DOPPIA':r[1]['esposizione_doppia'],
+        'AC_ESP_ESTERNA':r[1]['esposizione_esterna'],
+        'AC_ESP_INTERNA':r[1]['esposizione_interna'],
+        'AC_INF_IN_LEGNO':r[1]['infissi_in_legno'],
+        'AC_INF_IN_METALLO':r[1]['infissi_in_metallo'],
+        'AC_INF_IN_PVC':r[1]['infissi_in_pvc'],
 
-        ### ARREDATO
+        'AC_GIARDINO':r[1]['giardino'] ,
+        'AC_IMPIANTO_TV':r[1]['impianto_tv'] ,
+        'AC_PORTIERE':r[1]['portiere'],
 
-        'AC_ARREDATO': r[1]['arredato_ac_feat'] + r[1]['parzialmente arredato_ac_feat'],
+        'AC_IDROMASSAGGIO':r[1]['idromassaggio'] ,
+        'AC_ALLARME':r[1]['impianto_allarme'],
+        'AC_MANSARDA':r[1]['mansarda'] ,
+        'AC_PARC_BICI':r[1]['parcheggio_bici'],
+        'AC_P_CARRABILE':r[1]['passo_carrabile'] ,
 
-        ### C ELETTRICO
+        'AC_PISCINA':r[1]['piscina'] ,
+        'AC_P_BLINDATA':r[1]['porta_blindata'] ,
+        'AC_VIDEOCITOFONO':r[1]['videocitofono'] ,
+        'AC_TERRAZZA':r[1]['terrazza'] ,
 
-        'AC_C_ELETTR': r[1]['cancello elettrico_ac_feat'],
+        ### ESPOSIZIONE
 
-        ### TAVERNA
-
-        'AC_TAVERNA': r[1]['taverna_ac_feat'],
-
-        ### BALCONE
-
-        'AC_BALCONE'
+        'ES_OVEST':r[1]['esposizione_ovest'] ,
+        'ES_NORD':r[1]['esposizione_nord'] ,
+        'ES_SUD':r[1]['esposizione_sud'] ,
+        'ES_EST':r[1]['esposizione_est'] ,
 
         ### TIPO RISCALDAMENTO
 

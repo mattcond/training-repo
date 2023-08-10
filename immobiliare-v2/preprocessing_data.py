@@ -236,11 +236,12 @@ bologna_appartamento_masked['porta_blindata'] = bologna_appartamento_masked.altr
 bologna_appartamento_masked['videocitofono'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('videocitofono' in x))
 bologna_appartamento_masked['taverna'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('taverna' in x))
 bologna_appartamento_masked['terrazza'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('terrazza' in x))
-bologna_appartamento_masked['passo_carrabile'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('passo carrabile' in x))
+
+bologna_appartamento_masked.drop('altre_caratteristiche_list', axis=1, inplace=True)
 
 #%% Esposizione
 
-f = [i for i in bologna_appartamento_masked.columns if i.startswith('esposizione')]
+f = [i for i in bologna_appartamento_masked.columns if i.startswith('esposizione') and i.endswith('_ac_feat')]
 
 esposizione_n = pd.DataFrame(bologna_appartamento_masked[f].sum(axis=1), columns=['n'])
 esposizione_idmax = pd.DataFrame(bologna_appartamento_masked[f].idxmax(axis=1), columns=['idmax'])
@@ -250,10 +251,6 @@ esposizione = pd.DataFrame(esposizione.to_list(), index=esposizione.index)
 esposizione.columns = ['esposizione_'+i for i in esposizione.columns]
 
 bologna_appartamento_masked = bologna_appartamento_masked.join(esposizione).drop(f, axis=1)
-
-#%% Esposizione
-
-bologna_appartamento_masked.drop('altre_caratteristiche_list', axis=1, inplace=True)
 bologna_appartamento_masked.drop([i for i in bologna_appartamento_masked.columns if i.endswith('_ac_feat')], axis=1, inplace=True)
 
 # %% Riscaldamento
@@ -288,5 +285,5 @@ geo_enr_pdf.index = bologna_appartamento_masked.index
 bologna_appartamento_masked = bologna_appartamento_masked.join(geo_enr_pdf)
 
 # %%
-bologna_appartamento_masked.to_excel(f'PREPROCESSING_STEP1_.xlsx')
+bologna_appartamento_masked.to_excel(f'PREPROCESSING_STEP1.xlsx')
 # %%
