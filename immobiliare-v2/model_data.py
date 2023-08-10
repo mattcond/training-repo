@@ -3,10 +3,14 @@ import pandas as pd
 import numpy as np
 #%%
 
-data = pd.read_excel('PREPROCESSING_STEP1.xlsx' 'Sheet1')
-kpi_500 = pd.read_excel('model/perc_anno_mese.xlsx' 'BOL_KPI_500')
-kpi_1000 = pd.read_excel('model/perc_anno_mese.xlsx' 'BOL_KPI_1000')
+data = pd.read_excel('PREPROCESSING_STEP1.xlsx', 'Sheet1')
+
+#%%
+
+kpi_500 = pd.read_excel('model/perc_anno_mese.xlsx', 'BOL_KPI_500')
+kpi_1000 = pd.read_excel('model/perc_anno_mese.xlsx', 'BOL_KPI_1000')
 indice_frag = pd.read_excel('model/dati_esterni/indici-di-fragilita-dal-2021.xlsx')
+scaled_euro_mq = pd.read_excel('model/perc_anno_mese.xlsx', 'SCALED_PAR')
 
 #%%
 
@@ -19,6 +23,7 @@ data['coord'] = (data['aprox_lat'] * 1000).astype(int).astype(str) +'_'+ (data['
 data['aprox_lat_1000'] = data['latitudine'] - data['latitudine'] % 0.01
 data['aprox_lng_1000'] = data['longitudine'] - data['longitudine'] % 0.01
 data['coord_1000'] = (data['aprox_lat_1000'] * 1000).astype(int).astype(str) +'_'+ (data['aprox_lng_1000'] * 1000).astype(int).astype(str)
+data['anno_mese_annuncio'] = data['data_prima_presenza_online'].apply(lambda x: x[:7])
 
 #%%
 
@@ -28,35 +33,44 @@ data = pd.merge(data, kpi_500[['coord', 'N_FERMATE_500','N_FERMATE_CORE_500','N_
 data = pd.merge(data, kpi_1000[['coord', 'N_FERMATE_1000','N_FERMATE_CORE_1000','N_GIARDINI_1000','N_PARCHI_1000','N_FARMACIE_1000', 'MUSEI_GALLERIE_TEATRI_1000']], 
                 how='left', left_on='coord_1000', right_on='coord')
 
+data = pd.merge(data, scaled_euro_mq[['anno_mese','perc_perimetro']], 
+                how='left', left_on='anno_mese_annuncio', right_on='anno_mese')
+
 #%%
 
 piazza_maggiore_coord = [44.49367, 11.34305]
 stazione_centrale_coord = [44.50537, 11.34331]
 
 #%%
-i_frag_col = ['Cod Area Statistica' 
-         'Indice potenziale fragilità economica' 
-         'Indice potenziale fragilità sociale' 
-         'Indice potenziale fragilità demografica' 
-         'Reddito pro capite mediano delle famiglie' 
-         '% ricambio popolaz. straniera tra 20 e 64 anni' 
+i_frag_col = ['Cod Area Statistica',
+         'Indice potenziale fragilità economica' ,
+         'Indice potenziale fragilità sociale' ,
+         'Indice potenziale fragilità demografica', 
+         'Reddito pro capite mediano delle famiglie', 
+         '% ricambio popolaz. straniera tra 20 e 64 anni', 
          '% abitazioni occupate in affitto']
-indice_frag = indice_frag.loc[:i_frag_col]
+indice_frag = indice_frag[i_frag_col]
 
-indice_frag = ['codice_area_statistica' 
-         'frag_econ_index' 
-         'frag_socio_index' 
-         'frag_demo_index' 
-         'reddito_pc' 
-         'perc_ric_str' 
+indice_frag.columns = ['codice_area_statistica',
+         'frag_econ_index',
+         'frag_socio_index', 
+         'frag_demo_index',
+         'reddito_pc',
+         'perc_ric_str', 
          'perc_aff']
 #%%
 
 for r in data.head(5).iterrows():
 
-    print(r[1][['superficie','locali']])
     _output_dict = {
-        
+
+        'url_ann': r[1]['url_ann'],
+        'superficie': int(r[1]['superficie']), 
+        'prezzo': int(r[1]['prezzo']), 
+        'euro_mq': int(r[1]['euro_mq']),
+        'data_prima_presenza_online': r[1]['data_prima_presenza_online'], 
+        'anno_mese_annuncio': r[1]['anno_mese_annuncio'], 
+        'perimetro': 'X' if (r[1]['euro_mq'] > 1_850 and r[1]['euro_mq'] < 5_000) and (r[1]['prezzo'] > 125_000 and r[1]['prezzo'] < 700_000) and (r[1]['superficie'] > 40 and r[1]['superficie'] < 180) and int(r[1]['locali'][:1]) > 0 else '' ,
         ### AREA STATISTICA
 
         'AS_XXI_APRILE':1 if r[1]['area_statistica'] == 'XXI APRILE' else 0,
@@ -233,6 +247,10 @@ for r in data.head(5).iterrows():
 
         'AC_TAVERNA': r[1]['taverna_ac_feat'],
 
+        ### BALCONE
+
+        'AC_BALCONE'
+
         ### TIPO RISCALDAMENTO
 
         'RT_RADIATORI':1 if r[1]['riscaldamento_tipo_cat'] == 'a radiatori' else 0,
@@ -254,10 +272,17 @@ for r in data.head(5).iterrows():
         'RA_SOLARE':1 if r[1]['riscaldamento_alimentazione_cat'] == 'solare' else 0,
         'RA_ND':1 if r[1]['riscaldamento_alimentazione_cat'] is np.nan else 0,
 
+        ### KPI BOLOGNA
+
+        'GK_FERMATE':0 if r[1]['N_FERMATE_500'] is np.nan or r[1]['N_FERMATE_500']==0 else 1,
+        'GK_FERMATE_CORE':0 if r[1]['N_FERMATE_CORE_500'] is np.nan or r[1]['N_FERMATE_CORE_500']==0 else 1,
+        'GK_FARMACIE':0 if r[1]['N_FARMACIE_500'] is np.nan or r[1]['N_FARMACIE_500']==0 else 1,
+        'GK_MUSEI':0 if r[1]['MUSEI_GALLERIE_TEATRI_1000'] is np.nan or r[1]['MUSEI_GALLERIE_TEATRI_1000']==0 else 1,
+        'GK_PARCHI':0 if (r[1]['N_GIARDINI_500'] is np.nan or r[1]['N_GIARDINI_500']==0) and (r[1]['N_PARCHI_500'] is np.nan or r[1]['N_PARCHI_500']==0) else 1
+
     }
 
     print(_output_dict)
-
 
 #%%
 

@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 
 # %%  PAR
 
-days_window = 1000
+days_window = 30
 
 date_par = datetime.today() - timedelta(days=days_window)
 date_par = date_par.strftime('%Y-%m-%d')
@@ -158,7 +158,7 @@ cnx.close()
 merge_dataset['euro_mq'] = merge_dataset['prezzo'] / merge_dataset['superficie']
 bologna_appartamento = merge_dataset.loc[(merge_dataset.comune_rga =='Bologna') & (merge_dataset.tipo_immobile =='Appartamento') & (merge_dataset.affitto == 0)]
 
-col_mask = ['id_ann', 'url_ann', 'data_prima_presenza_online', 'data_ultima_presenza_online', 'latitudine', 
+col_mask = ['id_ann', 'url_ann', 'data_prima_presenza_online', 'data_ultima_presenza_online', 'latitudine', 'descrizione',
             'longitudine', 'tipo_proprietà', 'prezzo', 'spese_condominio', 'posto_auto', 'ascensore', 'spese_condominio',
             'superficie', 'piano', 'piani_totali', 'locali', 'climatizzato', 'bagni', 'altre_caratteristiche', 
             'anno_costruzione', 'stato', 'riscaldamento', 'climatizzazione','classe_energetica', 'kwh', 'agenzia', 'euro_mq']
@@ -198,6 +198,64 @@ altre_caratteristiche_exploded = pd.DataFrame(altre_caratteristiche_dict).T.fill
 altre_caratteristiche_exploded.columns = [i+'_ac_feat' for i in altre_caratteristiche_exploded.columns]
 bologna_appartamento_masked = bologna_appartamento_masked.join(altre_caratteristiche_exploded)
 
+# %% Altre caratteristiche agg
+bologna_appartamento_masked['altre_caratteristiche_list'] = bologna_appartamento_masked.altre_caratteristiche.apply(lambda x: [x.strip() for x in list(set(x.lower().split('|')))])
+
+bologna_appartamento_masked['armadio_a_muro'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('armadio a muro' in x))
+bologna_appartamento_masked['arredato'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int(len(set(['arredato', 'parzialmente arredato']) & set(x))>0))
+
+bologna_appartamento_masked['cablato'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('cablato' in x))
+bologna_appartamento_masked['caminetto'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('caminetto' in x))
+bologna_appartamento_masked['cancello'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('cancello elettrico' in x))
+bologna_appartamento_masked['canna_fumaria'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('canna fumaria' in x))
+bologna_appartamento_masked['cantina'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('cantina' in x))
+
+bologna_appartamento_masked['cucina'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int(len(set(['cucina', 'solo cucina arredata']) & set(x))>0))
+
+bologna_appartamento_masked['esposizione_doppia'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('esposizione doppia' in x))
+bologna_appartamento_masked['esposizione_esterna'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('esposizione esterna' in x))
+bologna_appartamento_masked['esposizione_interna'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('esposizione interna' in x))
+
+bologna_appartamento_masked['infissi_in_legno'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int([i for i in x if i.endswith('legno') and i.startswith('infiss')] != []))
+bologna_appartamento_masked['infissi_in_metallo'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int([i for i in x if i.endswith('metallo') and i.startswith('infiss')] != []))
+bologna_appartamento_masked['infissi_in_pvc'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int([i for i in x if i.endswith('pvc') and i.startswith('infiss')] != []))
+
+bologna_appartamento_masked['balcone'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int([i for i in x if 'balcon' in i] != []))
+bologna_appartamento_masked['giardino'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int([i for i in x if i.startswith('giardino')] != []))
+bologna_appartamento_masked['impianto_tv'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int([i for i in x if 'impianto tv' in i] != []))
+bologna_appartamento_masked['portiere'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int([i for i in x if i.startswith('portiere')] != []))
+
+bologna_appartamento_masked['idromassaggio'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('idromassaggio' in x))
+bologna_appartamento_masked['impianto_allarme'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('impianto di allarme' in x))
+bologna_appartamento_masked['mansarda'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('mansarda' in x))
+bologna_appartamento_masked['parcheggio_bici'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('parcheggio bici' in x))
+bologna_appartamento_masked['passo_carrabile'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('passo carrabile' in x))
+
+bologna_appartamento_masked['piscina'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('piscina' in x))
+bologna_appartamento_masked['porta_blindata'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('porta blindata' in x))
+bologna_appartamento_masked['videocitofono'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('videocitofono' in x))
+bologna_appartamento_masked['taverna'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('taverna' in x))
+bologna_appartamento_masked['terrazza'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('terrazza' in x))
+bologna_appartamento_masked['passo_carrabile'] = bologna_appartamento_masked.altre_caratteristiche_list.apply(lambda x: int('passo carrabile' in x))
+
+#%% Esposizione
+
+f = [i for i in bologna_appartamento_masked.columns if i.startswith('esposizione')]
+
+esposizione_n = pd.DataFrame(bologna_appartamento_masked[f].sum(axis=1), columns=['n'])
+esposizione_idmax = pd.DataFrame(bologna_appartamento_masked[f].idxmax(axis=1), columns=['idmax'])
+esposizione = esposizione_n.join(esposizione_idmax)
+esposizione = esposizione.apply(lambda x: get_esposizione() if x['n'] == 0 else get_esposizione(x['idmax']), axis=1)
+esposizione = pd.DataFrame(esposizione.to_list(), index=esposizione.index)
+esposizione.columns = ['esposizione_'+i for i in esposizione.columns]
+
+bologna_appartamento_masked = bologna_appartamento_masked.join(esposizione).drop(f, axis=1)
+
+#%% Esposizione
+
+bologna_appartamento_masked.drop('altre_caratteristiche_list', axis=1, inplace=True)
+bologna_appartamento_masked.drop([i for i in bologna_appartamento_masked.columns if i.endswith('_ac_feat')], axis=1, inplace=True)
+
 # %% Riscaldamento
 riscaldamento_dict = bologna_appartamento_masked.riscaldamento.apply(lambda x: {'riscaldamento_'+i.strip().lower():1 for i in x.split(',')}).to_dict()
 riscaldamento_exploded = pd.DataFrame(riscaldamento_dict).T.fillna(0)#.pipe(clean_names)
@@ -230,4 +288,5 @@ geo_enr_pdf.index = bologna_appartamento_masked.index
 bologna_appartamento_masked = bologna_appartamento_masked.join(geo_enr_pdf)
 
 # %%
-bologna_appartamento_masked.to_excel(f'output_data_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx')
+bologna_appartamento_masked.to_excel(f'PREPROCESSING_STEP1_.xlsx')
+# %%
